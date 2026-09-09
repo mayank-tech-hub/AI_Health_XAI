@@ -331,15 +331,6 @@ if predict_button:
 
     st.header("❤️ Health Guidance & Next Steps")
 
-    st.info(
-        """
-These recommendations are general educational guidance based on
-the information entered into this application. They are not a
-medical diagnosis or treatment plan. A qualified healthcare
-professional should make clinical decisions.
-"""
-    )
-
     # Base recommendations
     guidance = [
         "👨‍⚕️ Consider discussing the prediction and your risk factors with a qualified healthcare professional.",
@@ -352,10 +343,6 @@ professional should make clinical decisions.
 
     # Prediction-based guidance
     if prediction == 1:
-
-        st.warning(
-            "⚠️ The model estimates a higher likelihood of heart disease for the entered information."
-        )
 
         guidance.insert(
             0,
