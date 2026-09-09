@@ -325,6 +325,137 @@ if predict_button:
     )
 
 
+    # =========================================================
+    # NEW SECTION: PERSONALIZED HEALTH GUIDANCE
+    # =========================================================
+
+    st.header("❤️ Health Guidance & Next Steps")
+
+    st.info(
+        """
+These recommendations are general educational guidance based on
+the information entered into this application. They are not a
+medical diagnosis or treatment plan. A qualified healthcare
+professional should make clinical decisions.
+"""
+    )
+
+    # Base recommendations
+    guidance = [
+        "👨‍⚕️ Consider discussing the prediction and your risk factors with a qualified healthcare professional.",
+        "🩺 Keep track of blood pressure, cholesterol and other relevant health measurements as advised by a healthcare professional.",
+        "🥗 Follow a balanced, heart-healthy eating pattern with vegetables, fruits, whole grains and appropriate portions.",
+        "🚶 Maintain regular physical activity according to your fitness level and healthcare professional's advice.",
+        "🚭 Avoid smoking and tobacco exposure.",
+        "😴 Maintain healthy sleep habits and work toward a healthy body weight where appropriate."
+    ]
+
+    # Prediction-based guidance
+    if prediction == 1:
+
+        st.warning(
+            "⚠️ The model estimates a higher likelihood of heart disease for the entered information."
+        )
+
+        guidance.insert(
+            0,
+            "📋 Arrange a healthcare professional evaluation to discuss the result and whether additional clinical assessment or testing is appropriate."
+        )
+
+    else:
+
+        st.success(
+            "✅ The model estimates a lower likelihood of heart disease for the entered information."
+        )
+
+        guidance.insert(
+            0,
+            "📋 Continue preventive heart-health habits and discuss routine cardiovascular screening with a healthcare professional."
+        )
+
+
+    # Blood Pressure Guidance
+    if trestbps >= 140:
+
+        guidance.append(
+            "🩺 Your entered resting blood pressure is elevated. Discuss blood-pressure monitoring and evaluation with a healthcare professional."
+        )
+
+    elif trestbps >= 130:
+
+        guidance.append(
+            "🩺 Your entered resting blood pressure is above the ideal range. Regular monitoring and discussion with a healthcare professional may be useful."
+        )
+
+
+    # Cholesterol Guidance
+    if chol >= 240:
+
+        guidance.append(
+            "🧪 Your entered cholesterol value is high. Discuss cholesterol assessment and heart-health management with a healthcare professional."
+        )
+
+    elif chol >= 200:
+
+        guidance.append(
+            "🧪 Your entered cholesterol value is above the desirable range. Consider discussing your complete lipid profile with a healthcare professional."
+        )
+
+
+    # Fasting Blood Sugar Guidance
+    if fbs == 1:
+
+        guidance.append(
+            "🩸 Your entered fasting blood sugar is marked as elevated. Discuss blood-sugar assessment with a healthcare professional."
+        )
+
+
+    # Exercise Angina Guidance
+    if exang == 1:
+
+        guidance.append(
+            "💓 Exercise-induced angina is marked as present. Discuss this symptom with a healthcare professional, particularly if it is new, worsening or concerning."
+        )
+
+
+    # Maximum Heart Rate Guidance
+    if thalach < 100:
+
+        guidance.append(
+            "❤️ The entered maximum heart-rate value is relatively low. Discuss its clinical significance with a healthcare professional."
+        )
+
+
+    # Age-related preventive guidance
+    if age >= 45:
+
+        guidance.append(
+            "📅 Regular cardiovascular risk assessment can be useful, especially as age-related risk factors increase."
+        )
+
+
+    # Display Guidance
+    st.subheader("Recommended Next Steps")
+
+    for item in guidance:
+
+        st.write(item)
+
+
+    # Urgent symptom information
+    st.subheader("🚨 When to Seek Urgent Medical Help")
+
+    st.write(
+        """
+If someone has severe or persistent chest pain/pressure,
+difficulty breathing, fainting, sudden weakness, or other
+serious or rapidly worsening symptoms, they should seek
+urgent medical attention rather than relying on this
+application's prediction.
+"""
+    )
+
+
     # SHAP Explanation
 
     st.header("🔎 Explainable AI")
