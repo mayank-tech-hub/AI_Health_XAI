@@ -108,13 +108,6 @@ prediction using SHAP (SHapley Additive exPlanations).
 """
 )
 
-st.warning(
-    "This application is for educational and research purposes only. "
-    "It is not a medical diagnosis or a substitute for professional "
-    "medical advice."
-)
-
-
 # Sidebar - Model Information
 
 with st.sidebar:
