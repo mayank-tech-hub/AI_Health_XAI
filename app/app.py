@@ -5,6 +5,12 @@ import numpy as np
 import joblib
 import shap
 import matplotlib.pyplot as plt
+import streamlit as st
+from auth import require_login
+
+st.set_page_config(page_title="AI Health XAI", page_icon="❤️", layout="wide")
+
+require_login()
 
 
 # =========================================================
