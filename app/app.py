@@ -6,7 +6,6 @@ import joblib
 import shap
 import matplotlib.pyplot as plt
 
-
 # Page Configuration
 
 st.set_page_config(
@@ -15,6 +14,8 @@ st.set_page_config(
     layout="wide"
 )
 
+#UI/UX Design
+st.markdown('<script src="custom_css.css"></script>', unsafe_allow_html=True)
 
 # Load Saved Files
 
