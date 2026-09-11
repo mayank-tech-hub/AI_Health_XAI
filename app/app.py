@@ -6,7 +6,7 @@ import joblib
 import shap
 import matplotlib.pyplot as plt
 
-
+st.markdown('<script src="custom_css.css"></script>', unsafe_allow_html=True)
 # Page Configuration
 
 st.set_page_config(
