@@ -35,13 +35,19 @@ MODELS_DIR = os.path.join(
 
 
 # =========================================================
-# DISEASE SELECTION
+# MAIN HEADER
 # =========================================================
 
 st.title("❤️ AI-Based Early Disease Prediction")
+
 st.subheader(
     "Explainable AI (XAI) Health Prediction System"
 )
+
+
+# =========================================================
+# DISEASE SELECTION
+# =========================================================
 
 disease = st.selectbox(
     "Select Disease to Predict",
@@ -63,30 +69,30 @@ st.divider()
 if disease == "Heart Disease":
 
     # -----------------------------------------------------
-    # FILE PATHS
+    # HEART FILE PATHS
     # -----------------------------------------------------
 
-    MODEL_PATH = os.path.join(
+    HEART_MODEL_PATH = os.path.join(
         MODELS_DIR,
         "heart_disease_logistic_pipeline.pkl"
     )
 
-    PREPROCESSOR_PATH = os.path.join(
+    HEART_PREPROCESSOR_PATH = os.path.join(
         MODELS_DIR,
         "heart_disease_preprocessor.pkl"
     )
 
-    BACKGROUND_PATH = os.path.join(
+    HEART_BACKGROUND_PATH = os.path.join(
         MODELS_DIR,
         "shap_background.pkl"
     )
 
-    FEATURE_NAMES_PATH = os.path.join(
+    HEART_FEATURE_NAMES_PATH = os.path.join(
         MODELS_DIR,
         "clean_feature_names.pkl"
     )
 
-    MODEL_INFO_PATH = os.path.join(
+    HEART_MODEL_INFO_PATH = os.path.join(
         MODELS_DIR,
         "model_info.pkl"
     )
@@ -100,23 +106,23 @@ if disease == "Heart Disease":
     def load_heart_model():
 
         model = joblib.load(
-            MODEL_PATH
+            HEART_MODEL_PATH
         )
 
         preprocessor = joblib.load(
-            PREPROCESSOR_PATH
+            HEART_PREPROCESSOR_PATH
         )
 
         background = joblib.load(
-            BACKGROUND_PATH
+            HEART_BACKGROUND_PATH
         )
 
         feature_names = joblib.load(
-            FEATURE_NAMES_PATH
+            HEART_FEATURE_NAMES_PATH
         )
 
         model_info = joblib.load(
-            MODEL_INFO_PATH
+            HEART_MODEL_INFO_PATH
         )
 
         return (
@@ -168,7 +174,7 @@ if disease == "Heart Disease":
 
 
     # -----------------------------------------------------
-    # HEADER
+    # HEART HEADER
     # -----------------------------------------------------
 
     st.header(
@@ -187,7 +193,7 @@ The prediction is also explained using SHAP
 
 
     # -----------------------------------------------------
-    # SIDEBAR
+    # HEART SIDEBAR
     # -----------------------------------------------------
 
     with st.sidebar:
@@ -223,7 +229,7 @@ The prediction is also explained using SHAP
 
 
     # -----------------------------------------------------
-    # PATIENT INFORMATION
+    # HEART PATIENT INFORMATION
     # -----------------------------------------------------
 
     st.header(
@@ -242,7 +248,43 @@ The prediction is also explained using SHAP
             value=55
         )
 
-        sex = st.selectbox(
+
+        sex_label = st.selectbox(
             "Sex",
-            options=[0, 1],
-           
+            [
+                "Female (0)",
+                "Male (1)"
+            ]
+        )
+
+        if sex_label == "Female (0)":
+            sex = 0
+        else:
+            sex = 1
+
+
+        cp = st.selectbox(
+            "Chest Pain Type",
+            [1, 2, 3, 4]
+        )
+
+
+        trestbps = st.number_input(
+            "Resting Blood Pressure",
+            min_value=50,
+            max_value=250,
+            value=130
+        )
+
+
+        chol = st.number_input(
+            "Cholesterol",
+            min_value=50,
+            max_value=700,
+            value=250
+        )
+
+
+    with col2:
+
+       
