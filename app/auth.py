@@ -1,4 +1,4 @@
-"""
+""" 
 auth.py
 Self-contained login/signup for a Streamlit app, supporting two methods:
   - Email + Password
