@@ -17,6 +17,10 @@ st.set_page_config(
 )
 
 
+# =========================================================
+# BASE DIRECTORY
+# =========================================================
+
 BASE_DIR = os.path.dirname(
     os.path.dirname(
         os.path.abspath(__file__)
@@ -30,7 +34,7 @@ MODELS_DIR = os.path.join(
 
 
 # =========================================================
-# HEADER + DISEASE SELECTION
+# DISEASE SELECTION
 # =========================================================
 
 st.title(
@@ -41,7 +45,6 @@ st.subheader(
     "Explainable AI (XAI) Health Prediction System"
 )
 
-
 disease = st.selectbox(
     "Select Disease to Predict",
     [
@@ -50,8 +53,181 @@ disease = st.selectbox(
     ]
 )
 
-
 st.divider()
+
+
+# =========================================================
+# HEART DISEASE FILE PATHS
+# =========================================================
+
+HEART_MODEL_PATH = os.path.join(
+    MODELS_DIR,
+    "heart_disease_logistic_pipeline.pkl"
+)
+
+HEART_PREPROCESSOR_PATH = os.path.join(
+    MODELS_DIR,
+    "heart_disease_preprocessor.pkl"
+)
+
+HEART_BACKGROUND_PATH = os.path.join(
+    MODELS_DIR,
+    "shap_background.pkl"
+)
+
+HEART_FEATURE_NAMES_PATH = os.path.join(
+    MODELS_DIR,
+    "clean_feature_names.pkl"
+)
+
+HEART_MODEL_INFO_PATH = os.path.join(
+    MODELS_DIR,
+    "model_info.pkl"
+)
+
+
+# =========================================================
+# DIABETES FILE PATHS
+# =========================================================
+
+DIABETES_MODEL_PATH = os.path.join(
+    MODELS_DIR,
+    "diabetes_model.pkl"
+)
+
+DIABETES_PREPROCESSOR_PATH = os.path.join(
+    MODELS_DIR,
+    "diabetes_preprocessor.pkl"
+)
+
+DIABETES_BACKGROUND_PATH = os.path.join(
+    MODELS_DIR,
+    "diabetes_shap_background.pkl"
+)
+
+DIABETES_FEATURE_NAMES_PATH = os.path.join(
+    MODELS_DIR,
+    "diabetes_feature_names.pkl"
+)
+
+DIABETES_MODEL_INFO_PATH = os.path.join(
+    MODELS_DIR,
+    "diabetes_model_info.pkl"
+)
+
+
+# =========================================================
+# LOAD HEART MODEL FILES
+# =========================================================
+
+@st.cache_resource
+def load_heart_files():
+
+    model = joblib.load(
+        HEART_MODEL_PATH
+    )
+
+    preprocessor = joblib.load(
+        HEART_PREPROCESSOR_PATH
+    )
+
+    background = joblib.load(
+        HEART_BACKGROUND_PATH
+    )
+
+    feature_names = joblib.load(
+        HEART_FEATURE_NAMES_PATH
+    )
+
+    model_info = joblib.load(
+        HEART_MODEL_INFO_PATH
+    )
+
+    return (
+        model,
+        preprocessor,
+        background,
+        feature_names,
+        model_info
+    )
+
+
+# =========================================================
+# LOAD DIABETES MODEL FILES
+# =========================================================
+
+@st.cache_resource
+def load_diabetes_files():
+
+    model = joblib.load(
+        DIABETES_MODEL_PATH
+    )
+
+    preprocessor = joblib.load(
+        DIABETES_PREPROCESSOR_PATH
+    )
+
+    background = joblib.load(
+        DIABETES_BACKGROUND_PATH
+    )
+
+    feature_names = joblib.load(
+        DIABETES_FEATURE_NAMES_PATH
+    )
+
+    model_info = joblib.load(
+        DIABETES_MODEL_INFO_PATH
+    )
+
+    return (
+        model,
+        preprocessor,
+        background,
+        feature_names,
+        model_info
+    )
+
+
+# =========================================================
+# HEART SHAP EXPLAINER
+# IMPORTANT:
+# underscore parameters prevent Streamlit cache hashing error
+# =========================================================
+
+@st.cache_resource
+def create_heart_shap_explainer(
+    _model,
+    _background
+):
+
+    logistic_model = _model.named_steps[
+        "model"
+    ]
+
+    explainer = shap.LinearExplainer(
+        logistic_model,
+        _background
+    )
+
+    return explainer
+
+
+# =========================================================
+# DIABETES SHAP EXPLAINER
+# IMPORTANT:
+# underscore parameter prevents Streamlit cache hashing error
+# =========================================================
+
+@st.cache_resource
+def create_diabetes_shap_explainer(
+    _model
+):
+
+    explainer = shap.TreeExplainer(
+        _model
+    )
+
+    return explainer
 
 
 # =========================================================
@@ -59,68 +235,6 @@ st.divider()
 # =========================================================
 
 if disease == "Heart Disease":
-
-    HEART_MODEL_PATH = os.path.join(
-        MODELS_DIR,
-        "heart_disease_logistic_pipeline.pkl"
-    )
-
-    HEART_PREPROCESSOR_PATH = os.path.join(
-        MODELS_DIR,
-        "heart_disease_preprocessor.pkl"
-    )
-
-    HEART_BACKGROUND_PATH = os.path.join(
-        MODELS_DIR,
-        "shap_background.pkl"
-    )
-
-    HEART_FEATURE_NAMES_PATH = os.path.join(
-        MODELS_DIR,
-        "clean_feature_names.pkl"
-    )
-
-    HEART_MODEL_INFO_PATH = os.path.join(
-        MODELS_DIR,
-        "model_info.pkl"
-    )
-
-
-    # -----------------------------------------------------
-    # LOAD HEART FILES
-    # -----------------------------------------------------
-
-    @st.cache_resource
-    def load_heart_files():
-
-        model = joblib.load(
-            HEART_MODEL_PATH
-        )
-
-        preprocessor = joblib.load(
-            HEART_PREPROCESSOR_PATH
-        )
-
-        background = joblib.load(
-            HEART_BACKGROUND_PATH
-        )
-
-        feature_names = joblib.load(
-            HEART_FEATURE_NAMES_PATH
-        )
-
-        model_info = joblib.load(
-            HEART_MODEL_INFO_PATH
-        )
-
-        return (
-            model,
-            preprocessor,
-            background,
-            feature_names,
-            model_info
-        )
-
 
     (
         heart_model,
@@ -131,34 +245,16 @@ if disease == "Heart Disease":
     ) = load_heart_files()
 
 
-    # -----------------------------------------------------
-    # HEART SHAP EXPLAINER
-    # -----------------------------------------------------
-
-    @st.cache_resource
-    def create_heart_explainer(
-        model,
-        background
-    ):
-
-        logistic_model = model.named_steps[
-            "model"
-        ]
-
-        return shap.LinearExplainer(
-            logistic_model,
-            background
+    heart_shap_explainer = (
+        create_heart_shap_explainer(
+            heart_model,
+            heart_background
         )
-
-
-    heart_explainer = create_heart_explainer(
-        heart_model,
-        heart_background
     )
 
 
     # -----------------------------------------------------
-    # HEART HEADER
+    # HEADER
     # -----------------------------------------------------
 
     st.header(
@@ -167,14 +263,17 @@ if disease == "Heart Disease":
 
     st.write(
         """
-Enter patient information to estimate heart disease
-probability and view a SHAP-based explanation.
+This application uses a machine learning model to estimate
+the probability of heart disease based on patient information.
+
+The prediction is also explained using SHAP
+(Explainable AI).
 """
     )
 
 
     # -----------------------------------------------------
-    # HEART SIDEBAR
+    # SIDEBAR
     # -----------------------------------------------------
 
     with st.sidebar:
@@ -210,13 +309,12 @@ probability and view a SHAP-based explanation.
 
 
     # -----------------------------------------------------
-    # HEART PATIENT INFORMATION
+    # PATIENT INFORMATION
     # -----------------------------------------------------
 
     st.header(
         "Patient Information"
     )
-
 
     col1, col2, col3 = st.columns(3)
 
@@ -313,11 +411,10 @@ probability and view a SHAP-based explanation.
 
 
     # -----------------------------------------------------
-    # HEART PREDICTION BUTTON
+    # HEART PREDICTION
     # -----------------------------------------------------
 
     st.divider()
-
 
     predict_heart = st.button(
         "🔍 Predict Heart Disease",
@@ -348,7 +445,7 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # HEART PREDICTION
+        # PREDICTION
         # -------------------------------------------------
 
         prediction = int(
@@ -357,13 +454,11 @@ probability and view a SHAP-based explanation.
             )[0]
         )
 
-
         probabilities = (
             heart_model.predict_proba(
                 patient_data
             )[0]
         )
-
 
         no_disease_probability = float(
             probabilities[0]
@@ -375,15 +470,16 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # HEART RESULT
+        # RESULT
         # -------------------------------------------------
 
         st.header(
             "Prediction Result"
         )
 
-
-        result_col1, result_col2 = st.columns(2)
+        result_col1, result_col2 = (
+            st.columns(2)
+        )
 
 
         with result_col1:
@@ -410,7 +506,7 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # HEART PROBABILITY CHART
+        # PROBABILITY CHART
         # -------------------------------------------------
 
         probability_df = pd.DataFrame(
@@ -419,14 +515,12 @@ probability and view a SHAP-based explanation.
                     "No Disease",
                     "Disease Present"
                 ],
-
                 "Probability": [
                     no_disease_probability,
                     disease_probability
                 ]
             }
         )
-
 
         st.bar_chart(
             probability_df.set_index(
@@ -436,13 +530,12 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # HEART HEALTH GUIDANCE
+        # HEALTH GUIDANCE
         # -------------------------------------------------
 
         st.header(
             "❤️ Health Guidance & Next Steps"
         )
-
 
         if prediction == 1:
 
@@ -450,7 +543,6 @@ probability and view a SHAP-based explanation.
                 "⚠️ The model estimates a higher likelihood "
                 "of heart disease for the entered information."
             )
-
 
             guidance = [
 
@@ -474,7 +566,6 @@ probability and view a SHAP-based explanation.
                 "✅ The model estimates a lower likelihood "
                 "of heart disease for the entered information."
             )
-
 
             guidance = [
 
@@ -542,20 +633,18 @@ probability and view a SHAP-based explanation.
             "Recommended Next Steps"
         )
 
-
         for item in guidance:
 
             st.write(item)
 
 
         # -------------------------------------------------
-        # URGENT MEDICAL HELP
+        # URGENT HELP
         # -------------------------------------------------
 
         st.subheader(
             "🚨 When to Seek Urgent Medical Help"
         )
-
 
         st.write(
             """
@@ -576,11 +665,10 @@ application's prediction.
             "🔎 Explainable AI"
         )
 
-
         st.write(
             """
 Positive SHAP values push the prediction toward
-Disease Present, while negative values push it toward
+Disease Present, while negative SHAP values push it toward
 No Disease.
 """
         )
@@ -593,86 +681,95 @@ No Disease.
         )
 
 
-        shap_explanation = heart_explainer(
-            patient_transformed
+        shap_explanation = (
+            heart_shap_explainer(
+                patient_transformed
+            )
         )
 
 
-        shap_values = np.asarray(
+        heart_shap_values = np.asarray(
             shap_explanation.values[0]
         ).reshape(-1)
 
 
-        heart_explanation_df = pd.DataFrame(
-            {
-                "Feature": heart_feature_names,
-                "SHAP Value": shap_values
-            }
-        )
+        if len(heart_feature_names) == len(
+            heart_shap_values
+        ):
 
-
-        heart_explanation_df[
-            "Absolute SHAP"
-        ] = np.abs(
-            heart_explanation_df[
-                "SHAP Value"
-            ]
-        )
-
-
-        heart_explanation_df = (
-            heart_explanation_df
-            .sort_values(
-                "Absolute SHAP",
-                ascending=False
+            explanation_df = pd.DataFrame(
+                {
+                    "Feature": heart_feature_names,
+                    "SHAP Value": heart_shap_values
+                }
             )
-            .head(10)
-        )
 
-
-        st.subheader(
-            "Top Contributing Features"
-        )
-
-
-        st.bar_chart(
-            heart_explanation_df[
-                [
-                    "Feature",
+            explanation_df[
+                "Absolute SHAP"
+            ] = np.abs(
+                explanation_df[
                     "SHAP Value"
                 ]
-            ].set_index(
-                "Feature"
             )
-        )
+
+            explanation_df = (
+                explanation_df
+                .sort_values(
+                    "Absolute SHAP",
+                    ascending=False
+                )
+                .head(10)
+            )
 
 
-        heart_display_df = (
-            heart_explanation_df[
+            st.subheader(
+                "Top Contributing Features"
+            )
+
+
+            st.bar_chart(
+                explanation_df[
+                    [
+                        "Feature",
+                        "SHAP Value"
+                    ]
+                ].set_index(
+                    "Feature"
+                )
+            )
+
+
+            display_df = explanation_df[
                 [
                     "Feature",
                     "SHAP Value"
                 ]
             ].copy()
-        )
 
 
-        heart_display_df[
-            "Direction"
-        ] = np.where(
-            heart_display_df[
-                "SHAP Value"
-            ] > 0,
-            "Increases Disease Probability",
-            "Decreases Disease Probability"
-        )
+            display_df[
+                "Direction"
+            ] = np.where(
+                display_df[
+                    "SHAP Value"
+                ] > 0,
+                "Increases Disease Probability",
+                "Decreases Disease Probability"
+            )
 
 
-        st.dataframe(
-            heart_display_df,
-            use_container_width=True,
-            hide_index=True
-        )
+            st.dataframe(
+                display_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.error(
+                "Heart SHAP feature count does not match "
+                "the saved feature names."
+            )
 
 
 # =========================================================
@@ -680,68 +777,6 @@ No Disease.
 # =========================================================
 
 elif disease == "Diabetes":
-
-    DIABETES_MODEL_PATH = os.path.join(
-        MODELS_DIR,
-        "diabetes_model.pkl"
-    )
-
-    DIABETES_PREPROCESSOR_PATH = os.path.join(
-        MODELS_DIR,
-        "diabetes_preprocessor.pkl"
-    )
-
-    DIABETES_BACKGROUND_PATH = os.path.join(
-        MODELS_DIR,
-        "diabetes_shap_background.pkl"
-    )
-
-    DIABETES_FEATURE_NAMES_PATH = os.path.join(
-        MODELS_DIR,
-        "diabetes_feature_names.pkl"
-    )
-
-    DIABETES_MODEL_INFO_PATH = os.path.join(
-        MODELS_DIR,
-        "diabetes_model_info.pkl"
-    )
-
-
-    # -----------------------------------------------------
-    # LOAD DIABETES FILES
-    # -----------------------------------------------------
-
-    @st.cache_resource
-    def load_diabetes_files():
-
-        model = joblib.load(
-            DIABETES_MODEL_PATH
-        )
-
-        preprocessor = joblib.load(
-            DIABETES_PREPROCESSOR_PATH
-        )
-
-        background = joblib.load(
-            DIABETES_BACKGROUND_PATH
-        )
-
-        feature_names = joblib.load(
-            DIABETES_FEATURE_NAMES_PATH
-        )
-
-        model_info = joblib.load(
-            DIABETES_MODEL_INFO_PATH
-        )
-
-        return (
-            model,
-            preprocessor,
-            background,
-            feature_names,
-            model_info
-        )
-
 
     (
         diabetes_model,
@@ -752,35 +787,20 @@ elif disease == "Diabetes":
     ) = load_diabetes_files()
 
 
-    # -----------------------------------------------------
-    # DIABETES SHAP EXPLAINER
-    # -----------------------------------------------------
-
-    @st.cache_resource
-    def create_diabetes_explainer(
-        estimator
-    ):
-
-        return shap.TreeExplainer(
-            estimator
-        )
-
-
-    diabetes_explainer = (
-        create_diabetes_explainer(
+    diabetes_shap_explainer = (
+        create_diabetes_shap_explainer(
             diabetes_model
         )
     )
 
 
     # -----------------------------------------------------
-    # DIABETES HEADER
+    # HEADER
     # -----------------------------------------------------
 
     st.header(
         "🩸 Diabetes Prediction"
     )
-
 
     st.write(
         """
@@ -791,7 +811,7 @@ probability and view a SHAP-based explanation.
 
 
     # -----------------------------------------------------
-    # DIABETES SIDEBAR
+    # SIDEBAR
     # -----------------------------------------------------
 
     with st.sidebar:
@@ -834,7 +854,6 @@ probability and view a SHAP-based explanation.
         "Diabetes Patient Information"
     )
 
-
     col1, col2 = st.columns(2)
 
 
@@ -847,7 +866,6 @@ probability and view a SHAP-based explanation.
             value=1
         )
 
-
         glucose = st.number_input(
             "Glucose",
             min_value=0,
@@ -855,14 +873,12 @@ probability and view a SHAP-based explanation.
             value=120
         )
 
-
         blood_pressure = st.number_input(
             "Blood Pressure",
             min_value=0,
             max_value=200,
             value=70
         )
-
 
         skin_thickness = st.number_input(
             "Skin Thickness",
@@ -881,7 +897,6 @@ probability and view a SHAP-based explanation.
             value=80
         )
 
-
         bmi = st.number_input(
             "BMI",
             min_value=0.0,
@@ -890,7 +905,6 @@ probability and view a SHAP-based explanation.
             step=0.1
         )
 
-
         diabetes_pedigree = st.number_input(
             "Diabetes Pedigree Function",
             min_value=0.0,
@@ -898,7 +912,6 @@ probability and view a SHAP-based explanation.
             value=0.5,
             step=0.01
         )
-
 
         diabetes_age = st.number_input(
             "Age",
@@ -909,11 +922,10 @@ probability and view a SHAP-based explanation.
 
 
     # -----------------------------------------------------
-    # DIABETES PREDICTION BUTTON
+    # DIABETES PREDICTION
     # -----------------------------------------------------
 
     st.divider()
-
 
     predict_diabetes = st.button(
         "🔍 Predict Diabetes",
@@ -932,14 +944,15 @@ probability and view a SHAP-based explanation.
                 "SkinThickness": skin_thickness,
                 "Insulin": insulin,
                 "BMI": bmi,
-                "DiabetesPedigreeFunction": diabetes_pedigree,
+                "DiabetesPedigreeFunction":
+                    diabetes_pedigree,
                 "Age": diabetes_age
             }]
         )
 
 
         # -------------------------------------------------
-        # DIABETES PREPROCESSING
+        # PREPROCESSING
         # -------------------------------------------------
 
         diabetes_patient_transformed = (
@@ -950,7 +963,7 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # DIABETES PREDICTION
+        # PREDICTION
         # -------------------------------------------------
 
         diabetes_probability = float(
@@ -969,18 +982,18 @@ probability and view a SHAP-based explanation.
 
 
         diabetes_prediction = int(
-            diabetes_probability >= diabetes_threshold
+            diabetes_probability >=
+            diabetes_threshold
         )
 
 
         # -------------------------------------------------
-        # DIABETES RESULT
+        # RESULT
         # -------------------------------------------------
 
         st.header(
             "Prediction Result"
         )
-
 
         result_col1, result_col2 = (
             st.columns(2)
@@ -1011,13 +1024,13 @@ probability and view a SHAP-based explanation.
 
 
         st.caption(
-            f"Model threshold used: "
+            f"Prediction threshold: "
             f"{diabetes_threshold:.2f}"
         )
 
 
         # -------------------------------------------------
-        # DIABETES PROBABILITY CHART
+        # PROBABILITY CHART
         # -------------------------------------------------
 
         diabetes_probability_df = pd.DataFrame(
@@ -1043,7 +1056,7 @@ probability and view a SHAP-based explanation.
 
 
         # -------------------------------------------------
-        # DIABETES HEALTH GUIDANCE
+        # HEALTH GUIDANCE
         # -------------------------------------------------
 
         st.header(
@@ -1057,7 +1070,6 @@ probability and view a SHAP-based explanation.
                 "⚠️ The model estimates a higher likelihood "
                 "of diabetes for the entered information."
             )
-
 
             diabetes_guidance = [
 
@@ -1080,7 +1092,6 @@ probability and view a SHAP-based explanation.
                 "of diabetes for the entered information."
             )
 
-
             diabetes_guidance = [
 
                 "👨‍⚕️ Continue routine health check-ups as appropriate.",
@@ -1089,7 +1100,7 @@ probability and view a SHAP-based explanation.
 
                 "🚶 Maintain regular physical activity.",
 
-                "⚖️ Maintain a healthy lifestyle and healthy weight where appropriate.",
+                "⚖️ Maintain a healthy lifestyle.",
 
                 "😴 Maintain healthy sleep habits."
 
@@ -1148,47 +1159,65 @@ probability and view a SHAP-based explanation.
             "🔎 Explainable AI"
         )
 
-
         st.write(
             """
 Positive SHAP values push the model toward Diabetes,
-while negative values push it toward No Diabetes.
+while negative SHAP values push it toward No Diabetes.
 """
         )
 
 
         raw_shap_values = (
-            diabetes_explainer.shap_values(
+            diabetes_shap_explainer.shap_values(
                 diabetes_patient_transformed
             )
         )
 
 
-        raw_shap_values = np.asarray(
-            raw_shap_values
-        )
+        # -------------------------------------------------
+        # HANDLE SHAP OUTPUT
+        # -------------------------------------------------
 
+        if isinstance(
+            raw_shap_values,
+            list
+        ):
 
-        # Handle SHAP output shape:
-        # (samples, features, classes)
-
-        if raw_shap_values.ndim == 3:
-
-            diabetes_patient_shap = (
-                raw_shap_values[0, :, 1]
-            )
-
-        elif raw_shap_values.ndim == 2:
-
-            diabetes_patient_shap = (
-                raw_shap_values[0]
-            )
+            # Older SHAP versions
+            diabetes_patient_shap = np.asarray(
+                raw_shap_values[1]
+            )[0]
 
         else:
 
-            diabetes_patient_shap = (
-                raw_shap_values.reshape(-1)
+            shap_array = np.asarray(
+                raw_shap_values
             )
+
+            if shap_array.ndim == 3:
+
+                # samples, features, classes
+                diabetes_patient_shap = (
+                    shap_array[0, :, 1]
+                )
+
+            elif shap_array.ndim == 2:
+
+                diabetes_patient_shap = (
+                    shap_array[0]
+                )
+
+            elif shap_array.ndim == 1:
+
+                diabetes_patient_shap = (
+                    shap_array
+                )
+
+            else:
+
+                diabetes_patient_shap = (
+                    shap_array.reshape(-1)
+                )
 
 
         diabetes_patient_shap = np.asarray(
@@ -1202,26 +1231,32 @@ while negative values push it toward No Diabetes.
 
 
         # -------------------------------------------------
-        # SHAP TABLE
+        # SHAP RESULT
         # -------------------------------------------------
 
-        if len(diabetes_feature_names) != len(
+        if len(
+            diabetes_feature_names
+        ) != len(
             diabetes_patient_shap
         ):
 
             st.error(
-                "SHAP feature count does not match "
-                "the saved feature names."
+                "Diabetes SHAP feature count does not "
+                "match the saved feature names."
             )
 
         else:
 
-            diabetes_explanation_df = pd.DataFrame(
-                {
-                    "Feature": diabetes_feature_names,
+            diabetes_explanation_df = (
+                pd.DataFrame(
+                    {
+                        "Feature":
+                            diabetes_feature_names,
 
-                    "SHAP Value": diabetes_patient_shap
-                }
+                        "SHAP Value":
+                            diabetes_patient_shap
+                    }
+                )
             )
 
 
@@ -1244,10 +1279,6 @@ while negative values push it toward No Diabetes.
             )
 
 
-            # -------------------------------------------------
-            # SHAP BAR CHART
-            # -------------------------------------------------
-
             st.subheader(
                 "Top Contributing Features"
             )
@@ -1264,10 +1295,6 @@ while negative values push it toward No Diabetes.
                 )
             )
 
-
-            # -------------------------------------------------
-            # SHAP TABLE
-            # -------------------------------------------------
 
             diabetes_display_df = (
                 diabetes_explanation_df[
