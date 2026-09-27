@@ -1,9 +1,21 @@
 """
 auth.py
-Simple, self-contained login/signup for a Streamlit app.
+Self-contained login/signup for a Streamlit app, supporting two methods:
+  - Email + Password
+  - Mobile number + OTP
 
 Storage: SQLite (users.db, created automatically next to this file).
 Passwords: salted + hashed with PBKDF2-HMAC-SHA256 (stdlib only, no extra installs).
+
+IMPORTANT — About OTP delivery:
+Sending a real SMS requires a paid gateway (Twilio, MSG91, Fast2SMS, AWS SNS,
+Firebase Phone Auth, etc.) and API credentials. That integration is NOT
+included here. Instead, this module generates and verifies a real one-time
+code, but displays it on-screen in a clearly-labeled "demo mode" banner so
+you can test the full flow without a gateway.
+
+To go live with real SMS delivery: implement the body of `_send_otp_sms()`
+below with your provider's API call, and remove the on-screen OTP display.
 
 Usage in your main app file (e.g. app.py):
 
@@ -12,10 +24,6 @@ Usage in your main app file (e.g. app.py):
     require_login()   # <-- put this near the top, before your app content
 
     # ... rest of your existing Streamlit app code goes here ...
-
-That's it. require_login() will block execution (via st.stop()) and show a
-login/signup screen until the user is authenticated. Once logged in, it also
-adds a "Logged in as ..." + "Log out" control in the sidebar.
 """
 
 import streamlit as st
@@ -25,8 +33,12 @@ import hmac
 import os
 import re
 import secrets
+import time
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.db")
+
+OTP_LENGTH = 6
+OTP_VALIDITY_SECONDS = 300  # 5 minutes
 
 
 # ---------------------------------------------------------------------------
@@ -93,24 +105,23 @@ def _inject_styles():
             margin-top: 32px;
         }
 
-        .pulse-line {
+        .pulse-line-scroll {
+            height: 56px;
             width: 100%;
-            height: auto;
-            overflow: visible;
+            overflow: hidden;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 60'><path d='M0 30 H60 L72 10 L84 50 L96 30 L108 30 L120 6 L132 54 L144 30 H160' fill='none' stroke='%23E4573D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+            background-repeat: repeat-x;
+            background-position: 0 0;
+            background-size: 160px 56px;
+            animation: scroll-pulse 2.6s linear infinite;
         }
 
-        .pulse-line path {
-            stroke-dasharray: 900;
-            stroke-dashoffset: 900;
-            animation: draw-pulse 1.8s ease-out forwards;
-        }
-
-        @keyframes draw-pulse {
-            to { stroke-dashoffset: 0; }
+        @keyframes scroll-pulse {
+            to { background-position: -160px 0; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .pulse-line path { animation: none; stroke-dashoffset: 0; }
+            .pulse-line-scroll { animation: none; }
         }
 
         .auth-card-heading {
@@ -134,15 +145,28 @@ def _inject_styles():
             padding: 28px 28px 12px 28px;
         }
 
+        /* Fix: widget labels must stay visible against the white card */
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stWidgetLabel"] label,
+        [data-testid="stWidgetLabel"] * {
+            color: var(--auth-text) !important;
+            opacity: 1 !important;
+        }
+
         .stTextInput input {
             border-radius: 6px;
             border: 1px solid var(--auth-border);
             font-family: 'IBM Plex Sans', sans-serif;
+            color: var(--auth-text) !important;
         }
 
         .stTextInput input:focus {
             border-color: var(--auth-primary);
             box-shadow: 0 0 0 1px var(--auth-primary);
+        }
+
+        [data-testid="stTextInputRootElement"] button {
+            background: transparent !important;
         }
 
         [data-testid="stFormSubmitButton"] button {
@@ -175,12 +199,38 @@ def _inject_styles():
             border-bottom-color: var(--auth-primary) !important;
         }
 
+        /* Method switch (Email/Password vs Mobile/OTP) */
+        .stRadio [role="radiogroup"] {
+            gap: 4px;
+        }
+
+        .stRadio label p {
+            color: var(--auth-text) !important;
+            font-size: 0.92rem;
+        }
+
         [data-testid="stSidebar"] {
             background: var(--auth-primary-dark);
         }
 
         [data-testid="stSidebar"] * {
             color: #EAF2F1 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+            font-size: 1.05rem;
+        }
+
+        [data-testid="stSidebar"] button {
+            background: rgba(255, 255, 255, 0.10) !important;
+            border: none !important;
+            border-radius: 10px !important;
+            font-weight: 500;
+            padding: 0.6rem 1.4rem !important;
+        }
+
+        [data-testid="stSidebar"] button:hover {
+            background: rgba(255, 255, 255, 0.16) !important;
         }
         </style>
         """,
@@ -193,12 +243,8 @@ def _render_hero_panel():
         """
         <div class="auth-hero">
             <div>
-                <svg class="pulse-line" viewBox="0 0 320 60" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 30 H90 L102 10 L114 50 L126 30 L138 30 L150 6 L162 54 L174 30 L320 30"
-                          fill="none" stroke="#E4573D" stroke-width="2.5"
-                          stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <h1>Know your heart,<br/>early.</h1>
+                <div class="pulse-line-scroll"></div>
+                <h1>Know Your Health<br/>Early.</h1>
                 <p>
                     A machine-learning model estimates heart disease risk from
                     your clinical measurements, and explains exactly which
@@ -223,11 +269,21 @@ def _get_connection():
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             email TEXT UNIQUE,
-            salt TEXT NOT NULL,
-            password_hash TEXT NOT NULL
+            mobile TEXT UNIQUE,
+            salt TEXT,
+            password_hash TEXT,
+            auth_method TEXT NOT NULL DEFAULT 'password'
         )
         """
     )
+    # Migration safety net: if an older users.db exists without these
+    # columns, add them so upgrading doesn't break existing installs.
+    existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    if "mobile" not in existing_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN mobile TEXT")
+    if "auth_method" not in existing_columns:
+        conn.execute("ALTER TABLE users ADD COLUMN auth_method TEXT DEFAULT 'password'")
+    conn.commit()
     return conn
 
 
@@ -236,13 +292,16 @@ def _hash_password(password: str, salt: bytes) -> str:
     return dk.hex()
 
 
-def _create_user(username: str, email: str, password: str) -> tuple[bool, str]:
+def _create_user_email(username: str, email: str, password: str) -> tuple[bool, str]:
     conn = _get_connection()
     try:
         salt = secrets.token_bytes(16)
         password_hash = _hash_password(password, salt)
         conn.execute(
-            "INSERT INTO users (username, email, salt, password_hash) VALUES (?, ?, ?, ?)",
+            """
+            INSERT INTO users (username, email, mobile, salt, password_hash, auth_method)
+            VALUES (?, ?, NULL, ?, ?, 'password')
+            """,
             (username, email, salt.hex(), password_hash),
         )
         conn.commit()
@@ -253,14 +312,32 @@ def _create_user(username: str, email: str, password: str) -> tuple[bool, str]:
         conn.close()
 
 
-def _verify_user(username: str, password: str) -> bool:
+def _create_user_mobile(username: str, mobile: str) -> tuple[bool, str]:
+    conn = _get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO users (username, email, mobile, salt, password_hash, auth_method)
+            VALUES (?, NULL, ?, NULL, NULL, 'otp')
+            """,
+            (username, mobile),
+        )
+        conn.commit()
+        return True, "Account created successfully."
+    except sqlite3.IntegrityError:
+        return False, "That username or mobile number is already registered."
+    finally:
+        conn.close()
+
+
+def _verify_user_password(username: str, password: str) -> bool:
     conn = _get_connection()
     try:
         row = conn.execute(
-            "SELECT salt, password_hash FROM users WHERE username = ?",
+            "SELECT salt, password_hash FROM users WHERE username = ? AND auth_method = 'password'",
             (username,),
         ).fetchone()
-        if row is None:
+        if row is None or row[0] is None or row[1] is None:
             return False
         salt_hex, stored_hash = row
         salt = bytes.fromhex(salt_hex)
@@ -268,6 +345,64 @@ def _verify_user(username: str, password: str) -> bool:
         return hmac.compare_digest(candidate_hash, stored_hash)
     finally:
         conn.close()
+
+
+def _find_username_by_mobile(mobile: str) -> str | None:
+    conn = _get_connection()
+    try:
+        row = conn.execute(
+            "SELECT username FROM users WHERE mobile = ? AND auth_method = 'otp'",
+            (mobile,),
+        ).fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def _mobile_registered(mobile: str) -> bool:
+    return _find_username_by_mobile(mobile) is not None
+
+
+# ---------------------------------------------------------------------------
+# OTP helpers
+# ---------------------------------------------------------------------------
+
+def _generate_otp() -> str:
+    return "".join(str(secrets.randbelow(10)) for _ in range(OTP_LENGTH))
+
+
+def _send_otp_sms(mobile: str, otp: str):
+    """
+    Stub for real SMS delivery. Replace the body of this function with a
+    call to your SMS provider's API (Twilio, MSG91, Fast2SMS, AWS SNS, etc.)
+    to actually text the OTP to `mobile`. Currently a no-op — the calling
+    code displays the OTP on-screen instead, for local testing.
+    """
+    return True
+
+
+def _start_otp_challenge(prefix: str, mobile: str):
+    otp = _generate_otp()
+    st.session_state[f"{prefix}_otp_code"] = otp
+    st.session_state[f"{prefix}_otp_expiry"] = time.time() + OTP_VALIDITY_SECONDS
+    st.session_state[f"{prefix}_otp_mobile"] = mobile
+    st.session_state[f"{prefix}_otp_stage"] = "verify"
+    _send_otp_sms(mobile, otp)
+
+
+def _otp_is_valid(prefix: str, entered_otp: str) -> bool:
+    stored_otp = st.session_state.get(f"{prefix}_otp_code")
+    expiry = st.session_state.get(f"{prefix}_otp_expiry", 0)
+    if stored_otp is None:
+        return False
+    if time.time() > expiry:
+        return False
+    return hmac.compare_digest(entered_otp, stored_otp)
+
+
+def _reset_otp_challenge(prefix: str):
+    for key in ("otp_code", "otp_expiry", "otp_mobile", "otp_stage"):
+        st.session_state.pop(f"{prefix}_{key}", None)
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +417,10 @@ def _valid_username(username: str) -> bool:
     return re.match(r"^[A-Za-z0-9_]{3,20}$", username) is not None
 
 
+def _valid_mobile(mobile: str) -> bool:
+    return re.match(r"^\+?[0-9]{10,15}$", mobile) is not None
+
+
 def _password_strength_ok(password: str) -> tuple[bool, str]:
     if len(password) < 8:
         return False, "Password must be at least 8 characters long."
@@ -291,22 +430,19 @@ def _password_strength_ok(password: str) -> tuple[bool, str]:
 
 
 # ---------------------------------------------------------------------------
-# UI: Login form
+# UI: Login — Email & Password
 # ---------------------------------------------------------------------------
 
-def _render_login_form():
-    st.markdown('<div class="auth-card-heading">Welcome back</div>', unsafe_allow_html=True)
-    st.markdown('<div class="auth-card-subheading">Log in to run a new prediction.</div>', unsafe_allow_html=True)
-
-    with st.form("login_form", clear_on_submit=False):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Log In", use_container_width=True)
+def _render_login_email_form():
+    with st.form("login_email_form", clear_on_submit=False):
+        username = st.text_input("Username", key="login_email_username")
+        password = st.text_input("Password", type="password", key="login_email_password")
+        submitted = st.form_submit_button("Log in", use_container_width=True)
 
     if submitted:
         if not username or not password:
             st.error("Please enter both username and password.")
-        elif _verify_user(username, password):
+        elif _verify_user_password(username, password):
             st.session_state["authenticated"] = True
             st.session_state["username"] = username
             st.rerun()
@@ -315,19 +451,92 @@ def _render_login_form():
 
 
 # ---------------------------------------------------------------------------
-# UI: Signup form
+# UI: Login — Mobile & OTP
 # ---------------------------------------------------------------------------
 
-def _render_signup_form():
-    st.markdown('<div class="auth-card-heading">Create your account</div>', unsafe_allow_html=True)
-    st.markdown('<div class="auth-card-subheading">Takes under a minute.</div>', unsafe_allow_html=True)
+def _render_login_mobile_form():
+    prefix = "login"
+    stage = st.session_state.get(f"{prefix}_otp_stage", "request")
 
-    with st.form("signup_form", clear_on_submit=False):
-        username = st.text_input("Choose a username")
-        email = st.text_input("Email address")
-        password = st.text_input("Choose a password", type="password")
-        confirm_password = st.text_input("Confirm password", type="password")
-        submitted = st.form_submit_button("Sign Up", use_container_width=True)
+    if stage == "request":
+        with st.form("login_mobile_request_form", clear_on_submit=False):
+            mobile = st.text_input("Mobile number", placeholder="+91XXXXXXXXXX", key="login_mobile_number_input")
+            submitted = st.form_submit_button("Send OTP", use_container_width=True)
+
+        if submitted:
+            if not _valid_mobile(mobile):
+                st.error("Please enter a valid mobile number (10-15 digits, optional +country code).")
+            elif not _mobile_registered(mobile):
+                st.error("No account found with this mobile number. Please sign up first.")
+            else:
+                _start_otp_challenge(prefix, mobile)
+                st.rerun()
+
+    else:
+        mobile = st.session_state.get(f"{prefix}_otp_mobile", "")
+        st.info(
+            f"Demo mode: OTP for **{mobile}** is **{st.session_state.get(f'{prefix}_otp_code')}** "
+            f"(valid for 5 minutes). A production build would text this instead of showing it here."
+        )
+
+        with st.form("login_mobile_verify_form", clear_on_submit=False):
+            otp_entered = st.text_input("Enter OTP", max_chars=OTP_LENGTH, key="login_otp_input")
+            verify_submitted = st.form_submit_button("Verify & log in", use_container_width=True)
+
+        if verify_submitted:
+            if _otp_is_valid(prefix, otp_entered):
+                username = _find_username_by_mobile(mobile)
+                st.session_state["authenticated"] = True
+                st.session_state["username"] = username
+                _reset_otp_challenge(prefix)
+                st.rerun()
+            else:
+                st.error("Incorrect or expired OTP. Please try again or resend.")
+
+        col_resend, col_change = st.columns(2)
+        with col_resend:
+            if st.button("Resend OTP", key="login_resend_otp", use_container_width=True):
+                _start_otp_challenge(prefix, mobile)
+                st.rerun()
+        with col_change:
+            if st.button("Change number", key="login_change_number", use_container_width=True):
+                _reset_otp_challenge(prefix)
+                st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# UI: Login — wrapper
+# ---------------------------------------------------------------------------
+
+def _render_login_form():
+    st.markdown('<div class="auth-card-heading">Welcome back</div>', unsafe_allow_html=True)
+    st.markdown('<div class="auth-card-subheading">Log in to run a new prediction.</div>', unsafe_allow_html=True)
+
+    method = st.radio(
+        "Login method",
+        options=["Email & Password", "Mobile & OTP"],
+        key="login_method",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+
+    if method == "Email & Password":
+        _render_login_email_form()
+    else:
+        _render_login_mobile_form()
+
+
+# ---------------------------------------------------------------------------
+# UI: Signup — Email & Password
+# ---------------------------------------------------------------------------
+
+def _render_signup_email_form():
+    with st.form("signup_email_form", clear_on_submit=False):
+        username = st.text_input("Choose a username", key="signup_email_username")
+        email = st.text_input("Email address", key="signup_email_email")
+        password = st.text_input("Choose a password", type="password", key="signup_email_password")
+        confirm_password = st.text_input("Confirm password", type="password", key="signup_email_confirm")
+        submitted = st.form_submit_button("Create account", use_container_width=True)
 
     if submitted:
         if not username or not email or not password or not confirm_password:
@@ -351,11 +560,97 @@ def _render_signup_form():
             st.error(message)
             return
 
-        success, message = _create_user(username, email, password)
+        success, message = _create_user_email(username, email, password)
         if success:
             st.success(f"{message} You can now log in.")
         else:
             st.error(message)
+
+
+# ---------------------------------------------------------------------------
+# UI: Signup — Mobile & OTP
+# ---------------------------------------------------------------------------
+
+def _render_signup_mobile_form():
+    prefix = "signup"
+    stage = st.session_state.get(f"{prefix}_otp_stage", "request")
+
+    if stage == "request":
+        with st.form("signup_mobile_request_form", clear_on_submit=False):
+            username = st.text_input("Choose a username", key="signup_mobile_username_input")
+            mobile = st.text_input("Mobile number", placeholder="+91XXXXXXXXXX", key="signup_mobile_number_input")
+            submitted = st.form_submit_button("Send OTP", use_container_width=True)
+
+        if submitted:
+            if not username or not mobile:
+                st.error("Please enter both a username and a mobile number.")
+            elif not _valid_username(username):
+                st.error("Username must be 3-20 characters: letters, numbers, underscores only.")
+            elif not _valid_mobile(mobile):
+                st.error("Please enter a valid mobile number (10-15 digits, optional +country code).")
+            elif _mobile_registered(mobile):
+                st.error("This mobile number is already registered. Try logging in instead.")
+            else:
+                st.session_state[f"{prefix}_pending_username"] = username
+                _start_otp_challenge(prefix, mobile)
+                st.rerun()
+
+    else:
+        mobile = st.session_state.get(f"{prefix}_otp_mobile", "")
+        username = st.session_state.get(f"{prefix}_pending_username", "")
+        st.info(
+            f"Demo mode: OTP for **{mobile}** is **{st.session_state.get(f'{prefix}_otp_code')}** "
+            f"(valid for 5 minutes). A production build would text this instead of showing it here."
+        )
+
+        with st.form("signup_mobile_verify_form", clear_on_submit=False):
+            otp_entered = st.text_input("Enter OTP", max_chars=OTP_LENGTH, key="signup_otp_input")
+            verify_submitted = st.form_submit_button("Verify & create account", use_container_width=True)
+
+        if verify_submitted:
+            if _otp_is_valid(prefix, otp_entered):
+                success, message = _create_user_mobile(username, mobile)
+                _reset_otp_challenge(prefix)
+                st.session_state.pop(f"{prefix}_pending_username", None)
+                if success:
+                    st.success(f"{message} You can now log in with your mobile number.")
+                else:
+                    st.error(message)
+            else:
+                st.error("Incorrect or expired OTP. Please try again or resend.")
+
+        col_resend, col_change = st.columns(2)
+        with col_resend:
+            if st.button("Resend OTP", key="signup_resend_otp", use_container_width=True):
+                _start_otp_challenge(prefix, mobile)
+                st.rerun()
+        with col_change:
+            if st.button("Change number", key="signup_change_number", use_container_width=True):
+                _reset_otp_challenge(prefix)
+                st.session_state.pop(f"{prefix}_pending_username", None)
+                st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# UI: Signup — wrapper
+# ---------------------------------------------------------------------------
+
+def _render_signup_form():
+    st.markdown('<div class="auth-card-heading">Create your account</div>', unsafe_allow_html=True)
+    st.markdown('<div class="auth-card-subheading">Takes under a minute.</div>', unsafe_allow_html=True)
+
+    method = st.radio(
+        "Signup method",
+        options=["Email & Password", "Mobile & OTP"],
+        key="signup_method",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+
+    if method == "Email & Password":
+        _render_signup_email_form()
+    else:
+        _render_signup_mobile_form()
 
 
 # ---------------------------------------------------------------------------
