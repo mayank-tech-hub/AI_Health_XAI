@@ -1,23 +1,32 @@
-# Python
+# Python environment
+.venv/
+venv/
 __pycache__/
 *.py[cod]
-*$py.class
 
-# Jupyter
-.ipynb_checkpoints/
+# Secrets and environment variables
+.streamlit/secrets.toml
+.env
+.env.*
 
-# Virtual environments
-venv/
-env/
-.venv/
-
-# OS files
+# Cache and temporary files
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
 .DS_Store
 Thumbs.db
 
-# IDE
+# Editor files
 .vscode/
+.idea/
 
-# Temporary files
-*.tmp
-*.log
+# Local backup files
+*.backup
+*.bak
+*.phase*-backup
+
+# Backup files
+*.logo-backup
+*-backup
+*.phase*-backup

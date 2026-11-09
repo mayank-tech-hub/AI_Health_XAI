@@ -1,0 +1,296 @@
+
+/* =====================================================
+   AI HEALTH XAI — GLOBAL DESIGN SYSTEM
+   Theme-aware: Light / Dark
+   ===================================================== */
+
+/* ---------- GLOBAL VARIABLES ---------- */
+
+:root {
+    --brand-primary: #7655e9;
+    --brand-primary-hover: #6342d5;
+    --brand-soft: rgba(118, 85, 233, 0.10);
+    --brand-border: rgba(118, 85, 233, 0.25);
+
+    --surface-radius: 16px;
+    --surface-radius-small: 11px;
+
+    --shadow-soft: 0 5px 20px rgba(30, 40, 70, 0.06);
+    --shadow-hover: 0 9px 26px rgba(30, 40, 70, 0.12);
+}
+
+/* ---------- APPLICATION BASE ---------- */
+
+.stApp {
+    color-scheme: light dark;
+}
+
+.block-container {
+    max-width: 1440px;
+    padding: 2rem 2.4rem 3rem;
+}
+
+h1, h2, h3, h4 {
+    letter-spacing: -0.035em;
+    font-weight: 700;
+}
+
+h1 {
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+h2 {
+    font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+}
+
+h3 {
+    font-size: 1.2rem;
+}
+
+/* ---------- PAGE HEADER ---------- */
+
+.page-header {
+    padding: 8px 0 18px;
+}
+
+.page-eyebrow {
+    color: var(--brand-primary);
+    font-size: 0.76rem;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.page-description {
+    opacity: 0.72;
+    font-size: 0.96rem;
+}
+
+/* ---------- CARDS ---------- */
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: var(--surface-radius);
+    border-color: var(--brand-border);
+    box-shadow: var(--shadow-soft);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: var(--brand-primary);
+}
+
+/* ---------- METRICS ---------- */
+
+div[data-testid="stMetric"] {
+    padding: 17px;
+    border-radius: var(--surface-radius-small);
+    background: var(--secondary-background-color);
+    border: 1px solid var(--brand-border);
+}
+
+div[data-testid="stMetricLabel"] {
+    font-weight: 600;
+}
+
+div[data-testid="stMetricValue"] {
+    font-weight: 750;
+}
+
+/* ---------- BUTTONS ---------- */
+
+.stButton button,
+.stDownloadButton button,
+.stFormSubmitButton button {
+    min-height: 43px;
+    border-radius: 10px;
+    font-weight: 650;
+    transition: all 0.2s ease;
+}
+
+.stButton button[kind="primary"],
+.stFormSubmitButton button[kind="primary"] {
+    border: 1px solid var(--brand-primary);
+}
+
+.stButton button:hover,
+.stDownloadButton button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+}
+
+/* ---------- INPUTS ---------- */
+
+.stTextInput input,
+.stNumberInput input,
+.stTextArea textarea {
+    min-height: 43px;
+    border-radius: 10px;
+}
+
+.stSelectbox div[data-baseweb="select"],
+.stMultiSelect div[data-baseweb="select"] {
+    border-radius: 10px;
+}
+
+/* ---------- TABS ---------- */
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    border-bottom: 1px solid var(--brand-border);
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: 9px 9px 0 0;
+    font-weight: 600;
+    padding: 10px 17px;
+}
+
+/* ---------- SIDEBAR ---------- */
+
+section[data-testid="stSidebar"] {
+    border-right: 1px solid var(--brand-border);
+}
+
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
+    line-height: 1.55;
+}
+
+section[data-testid="stSidebar"] div[role="radiogroup"] label {
+    border-radius: 9px;
+}
+
+/* ---------- EXPANDERS ---------- */
+
+div[data-testid="stExpander"] {
+    border-radius: var(--surface-radius-small);
+    border-color: var(--brand-border);
+}
+
+/* ---------- DATA TABLES ---------- */
+
+div[data-testid="stDataFrame"],
+div[data-testid="stTable"] {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ---------- ALERTS ---------- */
+
+div[data-testid="stAlert"] {
+    border-radius: 11px;
+}
+
+/* ---------- DIVIDERS ---------- */
+
+hr {
+    border-color: var(--brand-border);
+}
+
+/* ---------- IMAGES ---------- */
+
+.stImage img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+}
+
+/* ---------- FORMS ---------- */
+
+div[data-testid="stForm"] {
+    border-radius: var(--surface-radius);
+}
+
+/* ---------- CHARTS ---------- */
+
+div[data-testid="stVegaLiteChart"],
+div[data-testid="stArrowVegaLiteChart"] {
+    border-radius: 12px;
+}
+
+/* ---------- RESPONSIVE TABLET ---------- */
+
+@media screen and (max-width: 992px) {
+    .block-container {
+        padding: 1.5rem 1.4rem 2.5rem;
+    }
+}
+
+/* ---------- RESPONSIVE MOBILE ---------- */
+
+@media screen and (max-width: 768px) {
+    .block-container {
+        padding: 1.1rem 0.85rem 2rem;
+    }
+
+    h1 {
+        font-size: 1.65rem;
+    }
+
+    h2 {
+        font-size: 1.35rem;
+    }
+
+    h3 {
+        font-size: 1.1rem;
+    }
+
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap;
+        gap: 0.8rem;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .stButton button,
+    .stDownloadButton button {
+        width: 100%;
+    }
+
+    div[data-testid="stMetric"] {
+        padding: 13px;
+    }
+}
+
+/* ---------- SMALL MOBILE ---------- */
+
+@media screen and (max-width: 480px) {
+    .block-container {
+        padding: 0.9rem 0.65rem 1.5rem;
+    }
+
+    h1 {
+        font-size: 1.45rem;
+    }
+
+    h2 {
+        font-size: 1.25rem;
+    }
+
+    h3 {
+        font-size: 1.05rem;
+    }
+
+    div[data-testid="stMetric"] {
+        padding: 10px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+}
+
+/* ---------- ACCESSIBILITY ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
